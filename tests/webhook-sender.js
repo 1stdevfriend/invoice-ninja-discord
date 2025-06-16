@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { sendMonthlySummaryToDiscord } = require('../src/utils');
 
 const WEBHOOK_URL = 'http://localhost:3000/webhook';
 
@@ -572,5 +573,41 @@ async function testAllEntities() {
     }
 }
 
+// Function to test monthly summary using the new charts/totals_v2-based logic
+// Note: If currency_id is missing or unknown, the summary will default to INR (₹)
+async function testMonthlySummaryFromCharts() {
+    console.log("\n📊 Fetching and displaying the current monthly summary using charts/totals_v2 (no new events sent)...");
+    console.log("(Note: If currency_id is missing or unknown, the summary will default to INR (₹))");
+    const { fetchAndSummarizeMonthlyStats } = require('../src/utils');
+    try {
+        const stats = await fetchAndSummarizeMonthlyStats();
+        const { summary, displayMonth } = stats;
+        for (const currencyId of Object.keys(summary)) {
+            const s = summary[currencyId];
+            const lines = [];
+            if (s.invoiceCount > 0) {
+                lines.push(`🟦 Invoices: ${s.invoiceCount} (${s.symbol}${s.invoiceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+            }
+            if (s.expenseAmount > 0) {
+                lines.push(`⬜ Expenses: ${s.symbol}${s.expenseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            }
+            if (s.outstandingCount > 0) {
+                lines.push(`🟥 Outstanding: ${s.outstandingCount} (${s.symbol}${s.outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+            }
+            if (lines.length > 0) {
+                console.log(`\n${displayMonth} (${s.code})\n` + lines.join('\n'));
+            }
+        }
+    } catch (err) {
+        console.error('Failed to fetch or display monthly summary:', err.message);
+    }
+}
+
+// Uncomment to run only the monthly summary test using charts/totals_v2
+// testMonthlySummaryFromCharts().catch(console.error);
+
 // Run the tests
-testAllEntities().catch(console.error); 
+testAllEntities().catch(console.error);
+
+// Uncomment to send the monthly summary as a real Discord embed
+// sendMonthlySummaryToDiscord(); 

@@ -31,22 +31,6 @@ const { handleProductEvent } = require('./handlers/product');
 const { handleCreditEvent } = require('./handlers/credit');
 const { handlePurchaseOrderEvent } = require('./handlers/purchaseOrder');
 
-const INVOICE_NINJA_ICON_URL = 'https://media.discordapp.net/attachments/540447710239784971/1384075879130595409/invoiceninja-svgrepo-com.png';
-
-const ENTITY_THUMBNAILS = {
-    client: 'https://cdn-icons-png.flaticon.com/512/5455/5455723.png',
-    invoice: 'https://cdn-icons-png.flaticon.com/512/4862/4862191.png',
-    quote: 'https://cdn-icons-png.flaticon.com/512/4388/4388554.png',
-    payment: 'https://cdn-icons-png.flaticon.com/512/6184/6184467.png',
-    vendor: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-    expense: 'https://cdn-icons-png.flaticon.com/512/781/781831.png',
-    project: 'https://cdn-icons-png.flaticon.com/512/906/906175.png',
-    task: 'https://cdn-icons-png.flaticon.com/512/1632/1632670.png',
-    product: 'https://cdn-icons-png.flaticon.com/512/679/679922.png',
-    credit: 'https://cdn-icons-png.flaticon.com/512/2424/2424710.png',
-    purchaseOrder: 'https://cdn-icons-png.flaticon.com/512/3500/3500833.png',
-};
-
 const webhookUrls = {
     client: process.env.DISCORD_WEBHOOK_URL_CLIENT,
     invoice: process.env.DISCORD_WEBHOOK_URL_INVOICE,
@@ -60,6 +44,8 @@ const webhookUrls = {
     credit: process.env.DISCORD_WEBHOOK_URL_CREDIT,
     purchaseOrder: process.env.DISCORD_WEBHOOK_URL_PURCHASEORDER,
 };
+
+const INVOICE_NINJA_ICON_URL = 'https://media.discordapp.net/attachments/540447710239784971/1384075879130595409/invoiceninja-svgrepo-com.png';
 
 // Helper function to determine client event type
 function determineClientEvent(data) {
@@ -271,9 +257,6 @@ app.post('/webhook', async (req, res) => {
         embed.footer = {
             text: 'Forwarded from Invoice Ninja',
             icon_url: INVOICE_NINJA_ICON_URL
-        };
-        embed.thumbnail = {
-            url: ENTITY_THUMBNAILS[entityType] || INVOICE_NINJA_ICON_URL
         };
 
         // Use per-entity webhook URL, fallback to DISCORD_WEBHOOK_URL
