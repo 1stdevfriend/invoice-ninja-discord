@@ -1,5 +1,5 @@
-const axios = require('axios');
-const { sendMonthlySummaryToDiscord } = require('../src/utils');
+import axios from 'axios';
+import { sendMonthlySummaryToDiscord, sendYearlySummaryToDiscord } from '../src/utils.js';
 
 const WEBHOOK_URL = 'http://localhost:3000/webhook';
 
@@ -606,8 +606,25 @@ async function testMonthlySummaryFromCharts() {
 // Uncomment to run only the monthly summary test using charts/totals_v2
 // testMonthlySummaryFromCharts().catch(console.error);
 
+// Function to manually trigger the yearly summary webhook for testing
+async function triggerYearlySummary() {
+    try {
+        const sent = await sendYearlySummaryToDiscord();
+        if (sent) {
+            console.log('✅ Yearly summary sent successfully!');
+        } else {
+            console.log('ℹ️ No yearly summary data to send (no data for any month).');
+        }
+    } catch (error) {
+        console.error('❌ Failed to send yearly summary:', error.message);
+    }
+}
+
+// Uncomment to trigger the yearly summary webhook
+triggerYearlySummary().catch(console.error);
+
 // Run the tests
-testAllEntities().catch(console.error);
+// testAllEntities().catch(console.error);
 
 // Uncomment to send the monthly summary as a real Discord embed
 // sendMonthlySummaryToDiscord(); 
