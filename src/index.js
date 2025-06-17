@@ -14,9 +14,6 @@ app.use(helmet());
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 
-const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
-const ERROR_DISCORD_WEBHOOK_URL = process.env.ERROR_DISCORD_WEBHOOK_URL;
-
 const { handleClientEvent, determineClientEvent } = require('./handlers/client');
 const { handleInvoiceEvent, determineInvoiceEvent } = require('./handlers/invoice');
 const { handleQuoteEvent, determineQuoteEvent } = require('./handlers/quote');
@@ -41,11 +38,13 @@ const webhookUrls = {
     product: process.env.DISCORD_WEBHOOK_URL_PRODUCT,
     credit: process.env.DISCORD_WEBHOOK_URL_CREDIT,
     purchaseOrder: process.env.DISCORD_WEBHOOK_URL_PURCHASEORDER,
+    default: process.env.DISCORD_WEBHOOK_URL,
+    error: process.env.ERROR_DISCORD_WEBHOOK_URL
 };
 
-const INVOICE_NINJA_ICON_URL = 'https://media.discordapp.net/attachments/540447710239784971/1384075879130595409/invoiceninja-svgrepo-com.png';
 
 app.post('/webhook', async (req, res) => {
+    const INVOICE_NINJA_ICON_URL = 'https://media.discordapp.net/attachments/540447710239784971/1384075879130595409/invoiceninja-svgrepo-com.png';
     try {
         const data = req.body;
         console.log('Received webhook:', JSON.stringify(data, null, 2));
@@ -128,7 +127,7 @@ app.post('/webhook', async (req, res) => {
             icon_url: INVOICE_NINJA_ICON_URL
         };
 
-        const webhookUrl = webhookUrls[entityType] || DISCORD_WEBHOOK_URL;
+        const webhookUrl = webhookUrls[entityType] || webhookUrls.default;
 
         if (webhookUrl) {
             try {
@@ -146,9 +145,9 @@ app.post('/webhook', async (req, res) => {
         res.status(200).send('Webhook processed successfully');
     } catch (error) {
         console.error('Error processing webhook:', error);
-        if (ERROR_DISCORD_WEBHOOK_URL) {
+        if (webhookUrls.error) {
             try {
-                await axios.post(ERROR_DISCORD_WEBHOOK_URL, {
+                await axios.post(webhookUrls.error, {
                     embeds: [{
                         title: '🚨 Webhook Error',
                         color: 0xff0000,
