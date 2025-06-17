@@ -14,4 +14,12 @@ function handlePaymentEvent(data, eventType, getUserDisplay, safeGet) {
     return { title, fields, color };
 }
 
-module.exports = { handlePaymentEvent }; 
+function determinePaymentEvent(data) {
+    if (data.is_deleted) return 'Delete';
+    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
+    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
+    if (data.created_at === data.updated_at) return 'Create';
+    return 'Update';
+}
+
+module.exports = { handlePaymentEvent, determinePaymentEvent }; 

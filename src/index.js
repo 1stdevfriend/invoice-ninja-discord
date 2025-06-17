@@ -9,27 +9,25 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 
-// Discord webhook URL should be set in .env file
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 const ERROR_DISCORD_WEBHOOK_URL = process.env.ERROR_DISCORD_WEBHOOK_URL;
 
-const { handleClientEvent } = require('./handlers/client');
-const { handleInvoiceEvent } = require('./handlers/invoice');
-const { handleQuoteEvent } = require('./handlers/quote');
-const { handlePaymentEvent } = require('./handlers/payment');
-const { handleVendorEvent } = require('./handlers/vendor');
-const { handleExpenseEvent } = require('./handlers/expense');
-const { handleProjectEvent } = require('./handlers/project');
-const { handleTaskEvent } = require('./handlers/task');
-const { handleProductEvent } = require('./handlers/product');
-const { handleCreditEvent } = require('./handlers/credit');
-const { handlePurchaseOrderEvent } = require('./handlers/purchaseOrder');
+const { handleClientEvent, determineClientEvent } = require('./handlers/client');
+const { handleInvoiceEvent, determineInvoiceEvent } = require('./handlers/invoice');
+const { handleQuoteEvent, determineQuoteEvent } = require('./handlers/quote');
+const { handlePaymentEvent, determinePaymentEvent } = require('./handlers/payment');
+const { handleVendorEvent, determineVendorEvent } = require('./handlers/vendor');
+const { handleExpenseEvent, determineExpenseEvent } = require('./handlers/expense');
+const { handleProjectEvent, determineProjectEvent } = require('./handlers/project');
+const { handleTaskEvent, determineTaskEvent } = require('./handlers/task');
+const { handleProductEvent, determineProductEvent } = require('./handlers/product');
+const { handleCreditEvent, determineCreditEvent } = require('./handlers/credit');
+const { handlePurchaseOrderEvent, determinePurchaseOrderEvent } = require('./handlers/purchaseOrder');
 
 const webhookUrls = {
     client: process.env.DISCORD_WEBHOOK_URL_CLIENT,
@@ -47,133 +45,6 @@ const webhookUrls = {
 
 const INVOICE_NINJA_ICON_URL = 'https://media.discordapp.net/attachments/540447710239784971/1384075879130595409/invoiceninja-svgrepo-com.png';
 
-// Helper function to determine client event type
-function determineClientEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine invoice event type
-function determineInvoiceEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.status_id === '2') return 'Approve';
-    if (data.status_id === '5') return 'Expired';
-    if (data.remind) return 'Remind';
-    if (data.invitations?.[0]?.message_id && data.invitations?.[0]?.sent_date) return 'Email Sent';
-    if (data.invitations?.[0]?.sent_date) return 'Marked as Sent';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine quote event type
-function determineQuoteEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.status_id === '2') return 'Approve';
-    if (data.status_id === '5') return 'Expired';
-    if (data.remind) return 'Remind';
-    if (data.invitations?.[0]?.message_id && data.invitations?.[0]?.sent_date) return 'Email Sent';
-    if (data.invitations?.[0]?.sent_date) return 'Marked as Sent';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine payment event type
-function determinePaymentEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine vendor event type
-function determineVendorEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine expense event type
-function determineExpenseEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine project event type
-function determineProjectEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine task event type
-function determineTaskEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine product event type
-function determineProductEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine credit event type
-function determineCreditEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.status_id === '3') return 'Applied';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Helper function to determine purchase order event type
-function determinePurchaseOrderEvent(data) {
-    if (data.is_deleted) return 'Delete';
-    if (data.archived_at > 0) return 'Archive';
-    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
-    if (data.status_id === '2') return 'Approve';
-    if (data.status_id === '5') return 'Expired';
-    if (data.remind) return 'Remind';
-    if (data.invitations?.[0]?.message_id && data.invitations?.[0]?.sent_date) return 'Email Sent';
-    if (data.invitations?.[0]?.sent_date) return 'Marked as Sent';
-    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
-    if (data.created_at === data.updated_at) return 'Create';
-    return 'Update';
-}
-
-// Webhook handler
 app.post('/webhook', async (req, res) => {
     try {
         const data = req.body;
@@ -188,7 +59,6 @@ app.post('/webhook', async (req, res) => {
         let embed;
         const entityType = data.entity_type;
 
-        // Safely access nested properties
         const safeGet = (obj, path, defaultValue = 'N/A') => {
             try {
                 return path.split('.').reduce((o, i) => o[i], obj) || defaultValue;
@@ -197,7 +67,6 @@ app.post('/webhook', async (req, res) => {
             }
         };
 
-        // Get user display name from webhook data
         const getUserDisplay = () => {
             const user = data.user || {};
             return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Unknown User';
@@ -259,7 +128,6 @@ app.post('/webhook', async (req, res) => {
             icon_url: INVOICE_NINJA_ICON_URL
         };
 
-        // Use per-entity webhook URL, fallback to DISCORD_WEBHOOK_URL
         const webhookUrl = webhookUrls[entityType] || DISCORD_WEBHOOK_URL;
 
         if (webhookUrl) {
@@ -278,7 +146,6 @@ app.post('/webhook', async (req, res) => {
         res.status(200).send('Webhook processed successfully');
     } catch (error) {
         console.error('Error processing webhook:', error);
-        // Send error to error webhook if configured
         if (ERROR_DISCORD_WEBHOOK_URL) {
             try {
                 await axios.post(ERROR_DISCORD_WEBHOOK_URL, {
@@ -305,12 +172,10 @@ app.post('/webhook', async (req, res) => {
     }
 });
 
-// Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
 
-// Import the cron job
 require('./cron');
 
 app.listen(port, () => {

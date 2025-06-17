@@ -16,4 +16,14 @@ function handleCreditEvent(data, eventType, getUserDisplay, safeGet) {
     return { title, fields, color };
 }
 
-module.exports = { handleCreditEvent }; 
+function determineCreditEvent(data) {
+    if (data.is_deleted) return 'Delete';
+    if (data.archived_at > 0) return 'Archive';
+    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
+    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
+    if (data.status_id === '3') return 'Applied';
+    if (data.created_at === data.updated_at) return 'Create';
+    return 'Update';
+}
+
+module.exports = { handleCreditEvent, determineCreditEvent }; 

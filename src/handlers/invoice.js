@@ -29,4 +29,17 @@ function handleInvoiceEvent(data, eventType, getUserDisplay, safeGet) {
     return { title, fields, color };
 }
 
-module.exports = { handleInvoiceEvent }; 
+function determineInvoiceEvent(data) {
+    if (data.archived_at > 0) return 'Archive';
+    if (data.archived_at === 0 && data.updated_at > data.created_at && data._was_archived) return 'Restore';
+    if (data.status_id === '2') return 'Approve';
+    if (data.status_id === '5') return 'Expired';
+    if (data.remind) return 'Remind';
+    if (data.invitations?.[0]?.message_id && data.invitations?.[0]?.sent_date) return 'Email Sent';
+    if (data.invitations?.[0]?.sent_date) return 'Marked as Sent';
+    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
+    if (data.created_at === data.updated_at) return 'Create';
+    return 'Update';
+}
+
+module.exports = { handleInvoiceEvent, determineInvoiceEvent }; 

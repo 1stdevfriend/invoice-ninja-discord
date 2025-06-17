@@ -14,4 +14,12 @@ function handleVendorEvent(data, eventType, getUserDisplay, safeGet) {
     return { title, fields, color };
 }
 
-module.exports = { handleVendorEvent }; 
+function determineVendorEvent(data) {
+    if (data.is_deleted) return 'Delete';
+    if (data.archived_at > 0) return 'Archive';
+    if (data.archived_at === 0 && data.updated_at > data.created_at) return 'Update';
+    if (data.created_at === data.updated_at) return 'Create';
+    return 'Update';
+}
+
+module.exports = { handleVendorEvent, determineVendorEvent }; 
