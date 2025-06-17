@@ -300,4 +300,104 @@ async function sendYearlySummaryToDiscord(webhookUrl) {
     return true;
 }
 
-module.exports = { getColorForEvent, parseEventName, fetchAndSummarizeMonthlyStats, sendMonthlySummaryToDiscord, sendYearlySummaryToDiscord }; 
+/**
+ * Generates and sends a yearly payment summary by client to Discord
+ * Shows total payments made by each client from January 1st till current date
+ */
+async function sendYearlyPaymentSummaryToDiscord() {
+    const apiUrl = process.env.INVOICE_NINJA_URL;
+    const token = process.env.INVOICE_NINJA_TOKEN;
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+
+    if (!apiUrl || !token || !webhookUrl) {
+        console.error('Missing required environment variables');
+        return false;
+    }
+
+    try {
+        // Get current year's start date and current date
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10); // January 1st
+        const endDate = now.toISOString().slice(0, 10);
+
+        // Fetch all payments for the current year
+        const headers = { 'X-Api-Token': token };
+        const response = await axios.get(
+            `${apiUrl}/api/v1/payments?date_range=${startDate},${endDate}`,
+            { headers }
+        );
+        const payments = response.data.data || [];
+        console.log('Fetched payments:', payments.length);
+
+        // Fetch all clients and build a map of client_id -> {name, email}
+        const clientsRes = await axios.get(`${apiUrl}/api/v1/clients`, { headers });
+        const clients = clientsRes.data.data || [];
+        const clientMap = {};
+        for (const client of clients) {
+            clientMap[client.id] = {
+                name: client.name || 'Unknown Client',
+                email: (client.contacts && client.contacts[0]?.email) || 'No email'
+            };
+        }
+
+        // Group payments by client
+        const clientPayments = payments.reduce((acc, payment) => {
+            const clientId = payment.client_id;
+            if (!acc[clientId]) {
+                acc[clientId] = {
+                    name: clientMap[clientId]?.name || 'Unknown Client',
+                    email: clientMap[clientId]?.email || 'No email',
+                    total: 0,
+                    count: 0,
+                    currency: payment.currency?.code || 'INR',
+                    symbol: payment.currency?.symbol || '₹'
+                };
+            }
+            acc[clientId].total += parseFloat(payment.amount) || 0;
+            acc[clientId].count += 1;
+            return acc;
+        }, {});
+
+        // Convert to array and sort by total amount (descending)
+        const sortedClients = Object.values(clientPayments)
+            .sort((a, b) => b.total - a.total);
+        console.log('Sorted clients:', sortedClients.length);
+
+        if (sortedClients.length === 0) {
+            console.log('No payments found for the current year');
+            return false;
+        }
+
+        // Create Discord embed fields
+        const fields = sortedClients.map(client => ({
+            name: `👤 ${client.name}`,
+            value: `📧 ${client.email}\n💰 Total Paid: **${client.symbol}${client.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${client.currency}**\n🔢 Number of Payments: **${client.count}**`,
+            inline: false
+        }));
+
+        // Create and send Discord embed
+        const embed = {
+            title: `📊 Yearly Payment Summary (${now.getFullYear()})`,
+            description: `Payment summary from January 1st to ${endDate}`,
+            color: 0x00ff00, // Green color
+            fields,
+            timestamp: new Date().toISOString(),
+            footer: {
+                text: 'Forwarded from Invoice Ninja',
+                icon_url: 'https://media.discordapp.net/attachments/540447710239784971/1384075879130595409/invoiceninja-svgrepo-com.png'
+            }
+        };
+
+        console.log('Sending embed with fields:', fields.length);
+        await axios.post(webhookUrl, { embeds: [embed] });
+        return true;
+    } catch (error) {
+        console.error('Failed to send yearly payment summary:', error.message);
+        if (error.response) {
+            console.error('API Response:', error.response.data);
+        }
+        return false;
+    }
+}
+
+module.exports = { getColorForEvent, parseEventName, fetchAndSummarizeMonthlyStats, sendMonthlySummaryToDiscord, sendYearlySummaryToDiscord, sendYearlyPaymentSummaryToDiscord }; 

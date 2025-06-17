@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { sendMonthlySummaryToDiscord, sendYearlySummaryToDiscord } from '../src/utils.js';
+import { sendMonthlySummaryToDiscord, sendYearlySummaryToDiscord, sendYearlyPaymentSummaryToDiscord } from '../src/utils.js';
 
 const WEBHOOK_URL = 'http://localhost:3000/webhook';
 
@@ -622,6 +622,24 @@ async function triggerYearlySummary() {
 
 // Uncomment to trigger the yearly summary webhook
 triggerYearlySummary().catch(console.error);
+
+// Function to test the yearly payment summary
+async function testYearlyPaymentSummary() {
+    console.log('\n📊 Testing Yearly Payment Summary...');
+    try {
+        const sent = await sendYearlyPaymentSummaryToDiscord();
+        if (sent) {
+            console.log('✅ Yearly payment summary sent successfully!');
+        } else {
+            console.log('ℹ️ No payment data to send (no payments found for the current year).');
+        }
+    } catch (error) {
+        console.error('❌ Failed to send yearly payment summary:', error.message);
+    }
+}
+
+// Uncomment to test the yearly payment summary
+testYearlyPaymentSummary().catch(console.error);
 
 // Run the tests
 // testAllEntities().catch(console.error);
