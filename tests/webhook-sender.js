@@ -1,4 +1,5 @@
-const axios = require('axios');
+import axios from 'axios';
+import { sendMonthlySummaryToDiscord, sendYearlySummaryToDiscord, sendYearlyPaymentSummaryToDiscord } from '../src/utils.js';
 
 const WEBHOOK_URL = 'http://localhost:3000/webhook';
 
@@ -572,5 +573,76 @@ async function testAllEntities() {
     }
 }
 
+// Function to test monthly summary using the new charts/totals_v2-based logic
+// Note: If currency_id is missing or unknown, the summary will default to INR (₹)
+async function testMonthlySummaryFromCharts() {
+    console.log("\n📊 Fetching and displaying the current monthly summary using charts/totals_v2 (no new events sent)...");
+    console.log("(Note: If currency_id is missing or unknown, the summary will default to INR (₹))");
+    const { fetchAndSummarizeMonthlyStats } = require('../src/utils');
+    try {
+        const stats = await fetchAndSummarizeMonthlyStats();
+        const { summary, displayMonth } = stats;
+        for (const currencyId of Object.keys(summary)) {
+            const s = summary[currencyId];
+            const lines = [];
+            if (s.invoiceCount > 0) {
+                lines.push(`🟦 Invoices: ${s.invoiceCount} (${s.symbol}${s.invoiceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+            }
+            if (s.expenseAmount > 0) {
+                lines.push(`⬜ Expenses: ${s.symbol}${s.expenseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            }
+            if (s.outstandingCount > 0) {
+                lines.push(`🟥 Outstanding: ${s.outstandingCount} (${s.symbol}${s.outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+            }
+            if (lines.length > 0) {
+                console.log(`\n${displayMonth} (${s.code})\n` + lines.join('\n'));
+            }
+        }
+    } catch (err) {
+        console.error('Failed to fetch or display monthly summary:', err.message);
+    }
+}
+
+// Uncomment to run only the monthly summary test using charts/totals_v2
+// testMonthlySummaryFromCharts().catch(console.error);
+
+// Function to manually trigger the yearly summary webhook for testing
+async function triggerYearlySummary() {
+    try {
+        const sent = await sendYearlySummaryToDiscord();
+        if (sent) {
+            console.log('✅ Yearly summary sent successfully!');
+        } else {
+            console.log('ℹ️ No yearly summary data to send (no data for any month).');
+        }
+    } catch (error) {
+        console.error('❌ Failed to send yearly summary:', error.message);
+    }
+}
+
+// Uncomment to trigger the yearly summary webhook
+triggerYearlySummary().catch(console.error);
+
+// Function to test the yearly payment summary
+async function testYearlyPaymentSummary() {
+    console.log('\n📊 Testing Yearly Payment Summary...');
+    try {
+        const sent = await sendYearlyPaymentSummaryToDiscord();
+        if (sent) {
+            console.log('✅ Yearly payment summary sent successfully!');
+        } else {
+            console.log('ℹ️ No payment data to send (no payments found for the current year).');
+        }
+    } catch (error) {
+        console.error('❌ Failed to send yearly payment summary:', error.message);
+    }
+}
+
+// Uncomment to test the yearly payment summary
+testYearlyPaymentSummary().catch(console.error);
+
 // Run the tests
-testAllEntities().catch(console.error); 
+// testAllEntities().catch(console.error);
+
+// Uncomment to send the monthly summary as a real Discord embed
+// sendMonthlySummaryToDiscord(); 
