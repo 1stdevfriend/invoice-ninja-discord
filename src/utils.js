@@ -1,32 +1,25 @@
 const axios = require('axios');
 require('dotenv').config();
 
-// Helper function to parse event name for color mapping
 function parseEventName(event) {
     if (!event) return 'default';
     return event.toLowerCase().replace(/\s+/g, '_');
 }
 
-// Helper function to get color for event type
 function getColorForEvent(event) {
     const eventName = parseEventName(event);
     const colorMap = {
-        // Common events
-        create: 0x00ff00,      // Green
-        update: 0x0000ff,      // Blue
-        delete: 0xff0000,      // Red
-        archive: 0x808080,     // Gray
-        restore: 0xffa500,     // Orange
-        default: 0x808080,     // Gray
-
-        // Invoice/Quote/PO specific events
-        email_sent: 0x00ff00,  // Green
-        marked_as_sent: 0x00ff00, // Green
-        approve: 0x00ff00,     // Green
-        expired: 0xff0000,     // Red
-
-        // Credit specific events
-        applied: 0x00ff00,     // Green
+        create: 0x00ff00,      
+        update: 0x0000ff,      
+        delete: 0xff0000,      
+        archive: 0x808080,     
+        restore: 0xffa500,     
+        default: 0x808080,     
+        email_sent: 0x00ff00,  
+        marked_as_sent: 0x00ff00, 
+        approve: 0x00ff00,     
+        expired: 0xff0000,     
+        applied: 0x00ff00,     
     };
     return colorMap[eventName] || colorMap.default;
 }
@@ -40,7 +33,6 @@ async function fetchAndSummarizeMonthlyStats() {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const startDate = `${year}-${month}-01`;
-    // Get last day of month
     const endDate = new Date(year, now.getMonth() + 1, 0).toISOString().slice(0, 10);
     const displayMonth = `01/${now.toLocaleString('en-US', { month: 'short' })}/${year}`;
 
@@ -51,30 +43,23 @@ async function fetchAndSummarizeMonthlyStats() {
         date_range: 'this_month'
     };
 
-    // Fetch summary from charts/totals_v2
     const res = await axios.post(`${apiUrl}/api/v1/charts/totals_v2`, payload, { headers });
     const data = res.data;
     const summary = {};
-    // currencies: {"21":"THB","1":"USD"}
     const currencyMap = data.currencies || {};
-    // For each currency in the response
     for (const currencyId of Object.keys(currencyMap)) {
         const currencyData = data[currencyId] || {};
-        // Prefer symbol/code from invoices, then expenses, then outstanding, then fallback
         const symbol = currencyData.invoices?.symbol || currencyData.expenses?.symbol || currencyData.outstanding?.symbol || '₹';
         const code = currencyData.invoices?.code || currencyData.expenses?.code || currencyData.outstanding?.code || 'INR';
-        // Invoices
         let invoiceCount = 0, invoiceAmount = 0;
         if (currencyData.invoices && currencyData.invoices.invoiced_amount) {
             invoiceAmount = parseFloat(currencyData.invoices.invoiced_amount) || 0;
             invoiceCount = currencyData.invoices.invoiced_count ? parseInt(currencyData.invoices.invoiced_count) : (invoiceAmount > 0 ? 1 : 0);
         }
-        // Expenses
         let expenseAmount = 0;
         if (currencyData.expenses && currencyData.expenses.amount) {
             expenseAmount = parseFloat(currencyData.expenses.amount) || 0;
         }
-        // Outstanding
         let outstandingAmount = 0, outstandingCount = 0;
         if (currencyData.outstanding && currencyData.outstanding.amount) {
             outstandingAmount = parseFloat(currencyData.outstanding.amount) || 0;
@@ -96,11 +81,6 @@ async function fetchAndSummarizeMonthlyStats() {
     };
 }
 
-/**
- * Sends the monthly summary as a Discord embed to the specified webhook URL.
- * @param {string} [webhookUrl] - Optional Discord webhook URL. Defaults to process.env.DISCORD_WEBHOOK_URL.
- * @returns {Promise<void>}
- */
 async function sendMonthlySummaryToDiscord(webhookUrl) {
     const url = webhookUrl || process.env.DISCORD_WEBHOOK_URL;
     if (!url) {
@@ -113,30 +93,31 @@ async function sendMonthlySummaryToDiscord(webhookUrl) {
         const fields = [];
         for (const currencyId of Object.keys(summary)) {
             const s = summary[currencyId];
-            const lines = [];
-            if (s.invoiceCount > 0) {
-                lines.push(`🟦 Invoices: ${s.invoiceCount} (${s.symbol}${s.invoiceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
-            }
-            if (s.expenseAmount > 0) {
-                lines.push(`⬜ Expenses: ${s.symbol}${s.expenseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-            }
-            if (s.outstandingCount > 0) {
-                lines.push(`🟥 Outstanding: ${s.outstandingCount} (${s.symbol}${s.outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
-            }
-            if (lines.length > 0) {
-                fields.push({
-                    name: `${displayMonth} (${s.code})`,
-                    value: lines.join('\n'),
-                    inline: false
-                });
-            }
+            if (s.invoiceCount === 0 && s.expenseAmount === 0 && s.outstandingCount === 0) continue;
+            fields.push(
+                {
+                    name: `🟦 Invoices (${s.code})`,
+                    value: `**${s.invoiceCount}**\n${s.symbol}${s.invoiceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    inline: true
+                },
+                {
+                    name: `⬜ Expenses (${s.code})`,
+                    value: `**${s.symbol}${s.expenseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**`,
+                    inline: true
+                },
+                {
+                    name: `🟥 Outstanding (${s.code})`,
+                    value: `**${s.outstandingCount}**\n${s.symbol}${s.outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    inline: true
+                }
+            );
         }
         if (fields.length === 0) {
-            // No summary data to send
             return;
         }
         const embed = {
-            title: '📊 Monthly Financial Summary',
+            title: `📊 Monthly Financial Summary: ${displayMonth}`,
+            description: "Here's your monthly overview by currency. Stay on top of your finances! 💸",
             color: 0x00bfff,
             fields,
             timestamp: new Date().toISOString(),
@@ -151,12 +132,6 @@ async function sendMonthlySummaryToDiscord(webhookUrl) {
     }
 }
 
-/**
- * Fetches monthly summaries for all months of the current year up to the current month,
- * and sends a combined yearly embed to Discord.
- * @param {string} [webhookUrl] - Optional Discord webhook URL. Defaults to process.env.DISCORD_WEBHOOK_URL.
- * @returns {Promise<boolean>} - Returns true if an embed is sent, false if no data is sent.
- */
 async function sendYearlySummaryToDiscord(webhookUrl) {
     const url = webhookUrl || process.env.DISCORD_WEBHOOK_URL;
     if (!url) {
@@ -164,11 +139,9 @@ async function sendYearlySummaryToDiscord(webhookUrl) {
     }
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-based month
+    const currentMonth = now.getMonth() + 1; 
     const fields = [];
-    // We'll keep track of all currencies seen so far
     const allCurrencies = new Set();
-    // First pass: collect all currencies used in the year
     const monthCurrencyData = [];
     for (let month = 1; month <= currentMonth; month++) {
         const startDate = `${currentYear}-${String(month).padStart(2, '0')}-01`;
@@ -185,13 +158,11 @@ async function sendYearlySummaryToDiscord(webhookUrl) {
             const res = await axios.post(`${process.env.INVOICE_NINJA_URL}/api/v1/charts/totals_v2`, payload, { headers });
             data = res.data;
         } catch (e) {
-            // If API fails, treat as no data
             data = {};
         }
         const currencyMap = data.currencies || {};
         const monthData = {};
         if (Object.keys(currencyMap).length === 0) {
-            // No currencies, use INR as fallback
             monthData['INR'] = {
                 symbol: '₹',
                 code: 'INR',
@@ -244,7 +215,6 @@ async function sendYearlySummaryToDiscord(webhookUrl) {
         }
         monthCurrencyData.push({ displayMonth, monthData });
     }
-    // Second pass: for each month, for each currency ever seen, show all fields (0 if missing)
     for (const { displayMonth, monthData } of monthCurrencyData) {
         for (const code of allCurrencies) {
             const s = monthData[code] || {
@@ -264,7 +234,6 @@ async function sendYearlySummaryToDiscord(webhookUrl) {
                 `⬜ Expenses: ${s.symbol}${s.expenseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                 `🟥 Outstanding: ${s.outstandingCount} (${s.symbol}${s.outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
             ];
-            // Add a blank line after each month's summary for this currency
             fields.push({
                 name: `${displayMonth} (${code})`,
                 value: lines.join('\n') + '\n',
@@ -272,7 +241,7 @@ async function sendYearlySummaryToDiscord(webhookUrl) {
             });
         }
     }
-    // Remove duplicate month/currency pairs (if any)
+
     const uniqueFields = [];
     const seen = new Set();
     for (const field of fields) {
@@ -283,7 +252,6 @@ async function sendYearlySummaryToDiscord(webhookUrl) {
         }
     }
     if (uniqueFields.length === 0) {
-        // No summary data to send
         return false;
     }
     const embed = {
@@ -300,10 +268,6 @@ async function sendYearlySummaryToDiscord(webhookUrl) {
     return true;
 }
 
-/**
- * Generates and sends a yearly payment summary by client to Discord
- * Shows total payments made by each client from January 1st till current date
- */
 async function sendYearlyPaymentSummaryToDiscord() {
     const apiUrl = process.env.INVOICE_NINJA_URL;
     const token = process.env.INVOICE_NINJA_TOKEN;
@@ -315,12 +279,10 @@ async function sendYearlyPaymentSummaryToDiscord() {
     }
 
     try {
-        // Get current year's start date and current date
         const now = new Date();
-        const startDate = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10); // January 1st
+        const startDate = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10); 
         const endDate = now.toISOString().slice(0, 10);
 
-        // Fetch all payments for the current year
         const headers = { 'X-Api-Token': token };
         const response = await axios.get(
             `${apiUrl}/api/v1/payments?date_range=${startDate},${endDate}`,
@@ -329,7 +291,6 @@ async function sendYearlyPaymentSummaryToDiscord() {
         const payments = response.data.data || [];
         console.log('Fetched payments:', payments.length);
 
-        // Fetch all clients and build a map of client_id -> {name, email}
         const clientsRes = await axios.get(`${apiUrl}/api/v1/clients`, { headers });
         const clients = clientsRes.data.data || [];
         const clientMap = {};
@@ -340,7 +301,6 @@ async function sendYearlyPaymentSummaryToDiscord() {
             };
         }
 
-        // Group payments by client
         const clientPayments = payments.reduce((acc, payment) => {
             const clientId = payment.client_id;
             if (!acc[clientId]) {
@@ -358,7 +318,6 @@ async function sendYearlyPaymentSummaryToDiscord() {
             return acc;
         }, {});
 
-        // Convert to array and sort by total amount (descending)
         const sortedClients = Object.values(clientPayments)
             .sort((a, b) => b.total - a.total);
         console.log('Sorted clients:', sortedClients.length);
@@ -368,18 +327,16 @@ async function sendYearlyPaymentSummaryToDiscord() {
             return false;
         }
 
-        // Create Discord embed fields
         const fields = sortedClients.map(client => ({
             name: `👤 ${client.name}`,
             value: `📧 ${client.email}\n💰 Total Paid: **${client.symbol}${client.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${client.currency}**\n🔢 Number of Payments: **${client.count}**`,
             inline: false
         }));
 
-        // Create and send Discord embed
         const embed = {
             title: `📊 Yearly Payment Summary (${now.getFullYear()})`,
             description: `Payment summary from January 1st to ${endDate}`,
-            color: 0x00ff00, // Green color
+            color: 0x00ff00, 
             fields,
             timestamp: new Date().toISOString(),
             footer: {
