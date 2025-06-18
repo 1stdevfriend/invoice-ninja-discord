@@ -17,9 +17,12 @@ function handleQuoteEvent(data, eventType, getUserDisplay, safeGet) {
         { name: '💰 Amount', value: `$${safeGet(data, 'amount')}`, inline: true },
         { name: '👤 Client', value: safeGet(data, 'client.name'), inline: true },
         { name: '📅 Valid Until', value: safeGet(data, 'valid_until'), inline: true },
-        { name: '🔖 Status', value: statusName, inline: true },
-        { name: '⚡ Action', value: `${eventType} by: ${getUserDisplay()}`, inline: true }
+        { name: '🔖 Status', value: statusName, inline: true }
     ];
+    const userDisplay = getUserDisplay();
+    if (userDisplay) {
+        fields.push({ name: '⚡ Action', value: `${eventType} by: ${userDisplay}`, inline: true });
+    }
     const color = getColorForEvent(eventType);
     return { title, fields, color };
 }

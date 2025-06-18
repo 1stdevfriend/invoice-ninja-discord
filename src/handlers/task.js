@@ -10,8 +10,11 @@ function handleTaskEvent(data, eventType, getUserDisplay, safeGet) {
         { name: '⏱️ Duration', value: safeGet(data, 'duration'), inline: true },
         { name: '🔖 Status', value: safeGet(data, 'status_id'), inline: true },
         { name: '📝 Notes', value: safeGet(data, 'public_notes'), inline: true },
-        { name: '⚡ Action', value: `${eventType} by: ${getUserDisplay()}`, inline: true }
     ];
+    const userDisplay = getUserDisplay();
+    if (userDisplay) {
+        fields.push({ name: '⚡ Action', value: `${eventType} by: ${userDisplay}`, inline: true });
+    }
     const color = getColorForEvent(eventType);
     return { title, fields, color };
 }

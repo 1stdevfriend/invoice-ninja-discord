@@ -7,9 +7,12 @@ function handleVendorEvent(data, eventType, getUserDisplay, safeGet) {
         { name: '📧 Email', value: safeGet(data, 'contacts.0.email'), inline: true },
         { name: '📞 Phone', value: safeGet(data, 'contacts.0.phone'), inline: true },
         { name: '🌐 Website', value: safeGet(data, 'website'), inline: true },
-        { name: '📝 Notes', value: safeGet(data, 'public_notes'), inline: true },
-        { name: '⚡ Action', value: `${eventType} by: ${getUserDisplay()}`, inline: true }
+        { name: '📝 Notes', value: safeGet(data, 'public_notes'), inline: true }
     ];
+    const userDisplay = getUserDisplay();
+    if (userDisplay) {
+        fields.push({ name: '⚡ Action', value: `${eventType} by: ${userDisplay}`, inline: true });
+    }
     const color = getColorForEvent(eventType);
     return { title, fields, color };
 }

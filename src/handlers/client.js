@@ -12,7 +12,9 @@ function handleClientEvent(data, eventType, getUserDisplay, safeGet) {
                   eventType === 'Delete' ? 'Deleted' : 
                   eventType === 'Archive' ? 'Archived' : 
                   eventType === 'Restore' ? 'Restored' : 'Modified';
-    description += `\n\n👤 ${action} by: ${userDisplay}`;
+    if (userDisplay) {
+        description += `\n\n👤 ${action} by: ${userDisplay}`;
+    }
     const color = getColorForEvent(eventType);
     return { title, description, color };
 }

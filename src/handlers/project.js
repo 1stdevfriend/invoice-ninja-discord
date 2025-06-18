@@ -8,9 +8,12 @@ function handleProjectEvent(data, eventType, getUserDisplay, safeGet) {
         { name: '📅 Due Date', value: safeGet(data, 'due_date'), inline: true },
         { name: '⏳ Budgeted Hours', value: safeGet(data, 'budgeted_hours'), inline: true },
         { name: '⏱️ Current Hours', value: safeGet(data, 'current_hours'), inline: true },
-        { name: '📝 Notes', value: safeGet(data, 'public_notes'), inline: true },
-        { name: '⚡ Action', value: `${eventType} by: ${getUserDisplay()}`, inline: true }
+        { name: '📝 Notes', value: safeGet(data, 'public_notes'), inline: true }
     ];
+    const userDisplay = getUserDisplay();
+    if (userDisplay) {
+        fields.push({ name: '⚡ Action', value: `${eventType} by: ${userDisplay}`, inline: true });
+    }
     const color = getColorForEvent(eventType);
     return { title, fields, color };
 }

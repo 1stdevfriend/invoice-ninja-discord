@@ -108,6 +108,22 @@ function determineEntityTypeFromData(data) {
     return null;
 }
 
+// Helper to fetch user details from Invoice Ninja API
+async function fetchUserFromApi(userId) {
+    const apiUrl = process.env.INVOICE_NINJA_URL;
+    const token = process.env.INVOICE_NINJA_TOKEN;
+    if (!apiUrl || !token || !userId) return null;
+    try {
+        const headers = { 'X-Api-Token': token };
+        const res = await axios.get(`${apiUrl}/api/v1/users/${userId}`, { headers });
+        const user = res.data.data;
+        return user;
+    } catch (e) {
+        console.error('Failed to fetch user from API:', e.message);
+        return null;
+    }
+}
+
 app.post('/webhook', async (req, res) => {
     const INVOICE_NINJA_ICON_URL = 'https://media.discordapp.net/attachments/540447710239784971/1384075879130595409/invoiceninja-svgrepo-com.png';
     try {
@@ -142,55 +158,72 @@ app.post('/webhook', async (req, res) => {
             }
         };
 
-        const getUserDisplay = () => {
-            const user = data.user || {};
-            return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Unknown User';
+        // Async getUserDisplay
+        const getUserDisplay = async () => {
+            // Prefer user object in data
+            if (data.user && (data.user.first_name || data.user.last_name || data.user.email)) {
+                const name = `${data.user.first_name || ''} ${data.user.last_name || ''}`.trim();
+                return name || data.user.email || null;
+            }
+            // Try user_id or created_user_id, updated_user_id, etc.
+            const userId = data.user_id || data.created_user_id || data.updated_user_id;
+            if (userId) {
+                const user = await fetchUserFromApi(userId);
+                if (user) {
+                    const name = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                    return name || user.email || null;
+                }
+            }
+            return null;
         };
 
+        // Await user display for all handlers
+        const userDisplay = await getUserDisplay();
+        // Handler functions will only show 'by' if userDisplay is truthy
         switch (entityType) {
             case 'client':
                 eventType = determineClientEvent(data);
-                embed = handleClientEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleClientEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'invoice':
                 eventType = determineInvoiceEvent(data);
-                embed = handleInvoiceEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleInvoiceEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'quote':
                 eventType = determineQuoteEvent(data);
-                embed = handleQuoteEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleQuoteEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'payment':
                 eventType = determinePaymentEvent(data);
-                embed = handlePaymentEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handlePaymentEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'vendor':
                 eventType = determineVendorEvent(data);
-                embed = handleVendorEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleVendorEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'expense':
                 eventType = determineExpenseEvent(data);
-                embed = handleExpenseEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleExpenseEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'project':
                 eventType = determineProjectEvent(data);
-                embed = handleProjectEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleProjectEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'task':
                 eventType = determineTaskEvent(data);
-                embed = handleTaskEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleTaskEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'product':
                 eventType = determineProductEvent(data);
-                embed = handleProductEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleProductEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'credit':
                 eventType = determineCreditEvent(data);
-                embed = handleCreditEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handleCreditEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             case 'purchaseOrder':
                 eventType = determinePurchaseOrderEvent(data);
-                embed = handlePurchaseOrderEvent(data, eventType, getUserDisplay, safeGet);
+                embed = handlePurchaseOrderEvent(data, eventType, () => userDisplay, safeGet);
                 break;
             default:
                 console.log('Unsupported entity type:', entityType);
