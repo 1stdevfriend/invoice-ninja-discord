@@ -42,6 +42,71 @@ const webhookUrls = {
     error: process.env.ERROR_DISCORD_WEBHOOK_URL
 };
 
+// Function to determine entity type from webhook data structure
+function determineEntityTypeFromData(data) {
+    if (!data) return null;
+    
+    console.log('Attempting to determine entity type from fields:', Object.keys(data));
+    
+    // Check for specific fields that indicate entity type
+    if (data.number && data.amount !== undefined && data.balance !== undefined) {
+        // Check if it's an invoice, quote, or credit based on additional fields
+        if (data.quote_id || data.type === 'quote') return 'quote';
+        if (data.credit_id || data.type === 'credit') return 'credit';
+        if (data.purchase_order_id || data.type === 'purchase_order') return 'purchaseOrder';
+        if (data.type === 'invoice' || data.invoice_id) return 'invoice';
+        // Default to invoice if it has invoice-like fields
+        return 'invoice';
+    }
+    
+    if (data.name && (data.contacts || data.email) && data.balance !== undefined) {
+        return 'client';
+    }
+    
+    if (data.amount && (data.payment_date || data.date) && (data.invoice_id || data.invoice_number)) {
+        return 'payment';
+    }
+    
+    if (data.name && (data.vendor_contacts || data.vendor_email)) {
+        return 'vendor';
+    }
+    
+    if (data.amount && (data.expense_date || data.date) && (data.vendor_id || data.vendor_name)) {
+        return 'expense';
+    }
+    
+    if (data.name && (data.start_date || data.project_start_date) && (data.end_date || data.project_end_date)) {
+        return 'project';
+    }
+    
+    if (data.description && (data.time_log || data.time_spent) && (data.project_id || data.project_name)) {
+        return 'task';
+    }
+    
+    if ((data.product_key || data.product_name) && (data.notes || data.description) && data.cost !== undefined) {
+        return 'product';
+    }
+    
+    // Additional checks for edge cases
+    if (data.type) {
+        switch (data.type) {
+            case 'invoice': return 'invoice';
+            case 'quote': return 'quote';
+            case 'credit': return 'credit';
+            case 'payment': return 'payment';
+            case 'client': return 'client';
+            case 'vendor': return 'vendor';
+            case 'expense': return 'expense';
+            case 'project': return 'project';
+            case 'task': return 'task';
+            case 'product': return 'product';
+            case 'purchase_order': return 'purchaseOrder';
+        }
+    }
+    
+    // If we can't determine, return null
+    return null;
+}
 
 app.post('/webhook', async (req, res) => {
     const INVOICE_NINJA_ICON_URL = 'https://media.discordapp.net/attachments/540447710239784971/1384075879130595409/invoiceninja-svgrepo-com.png';
@@ -49,14 +114,25 @@ app.post('/webhook', async (req, res) => {
         const data = req.body;
         console.log('Received webhook:', JSON.stringify(data, null, 2));
 
-        if (!data || !data.entity_type) {
-            console.error('Invalid webhook data: Missing entity_type');
-            return res.status(400).send('Invalid webhook data: Missing entity_type');
+        if (!data) {
+            console.error('Invalid webhook data: Empty payload');
+            return res.status(400).send('Invalid webhook data: Empty payload');
         }
+
+        // Try to get entity_type from data, or determine it from structure
+        let entityType = data.entity_type || determineEntityTypeFromData(data);
+        
+        if (!entityType) {
+            console.error('Invalid webhook data: Cannot determine entity type');
+            console.log('Available fields:', Object.keys(data));
+            console.log('Data structure:', JSON.stringify(data, null, 2));
+            return res.status(400).send('Invalid webhook data: Cannot determine entity type');
+        }
+
+        console.log('Determined entity type:', entityType);
 
         let eventType;
         let embed;
-        const entityType = data.entity_type;
 
         const safeGet = (obj, path, defaultValue = 'N/A') => {
             try {
